@@ -6,6 +6,8 @@ Plans and prices change, so follow the links before you quote anything.
 
 ## The short version
 
+![How an agent is billed on Google Cloud](docs/how_agents_are_billed.jpg)
+
 Whatever the wrapper is (an API call, a managed agent, a seat, a credit), usage underneath is priced the same way:
 **tokens times the price of the model that produced them**, plus the compute where the agent runs. Seats add a flat
 fee on top, and in exchange they prepay a pool of that usage.
@@ -84,6 +86,8 @@ Links: [Plans](https://antigravity.google/docs/plans), [Models](https://antigrav
 - Caching rules differ per provider. Anthropic bills prompt-cache writes above the input price (5-minute writes at
   1.25x) and reads at a tenth of it. In the Day 28 lab, Claude Sonnet 5.5 with a per-request header at the top of the
   prompt wrote its cache on every call and never read it; with the static part first, its cost per task almost halved.
+
+![The cost iceberg](docs/cost_iceberg.jpg)
 
 ## Where the Day 28 controls fit
 

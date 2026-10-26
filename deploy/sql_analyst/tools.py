@@ -1,10 +1,8 @@
 # Copyright 2026 Google LLC
 # Licensed under the Apache License, Version 2.0
-"""Tools for the Day 28 cost lab: a tiny sales database and a report that is never ready."""
+"""Tools for the Day 28 Cloud Run SQL analyst service."""
 
 import sqlite3
-
-from google.adk.tools import ToolContext  # noqa: F401
 
 _DB = sqlite3.connect(":memory:", check_same_thread=False)
 _DB.executescript(
@@ -39,20 +37,3 @@ def run_sql(query: str) -> dict:
         return {"columns": cols, "rows": [list(r) for r in cur.fetchmany(20)]}
     except Exception as e:  # the model sees the error and can retry
         return {"error": str(e)}
-
-
-def get_schema() -> dict:
-    """Returns the database schema."""
-    return {"schema": SCHEMA}
-
-
-def check_report_status(report_id: str, tool_context: ToolContext) -> dict:
-    """Checks whether the quarterly market report has finished generating.
-
-    Args:
-        report_id: The report to check, for example "q3-market".
-    """
-    # The "hidden spinner": the report never becomes ready in this demo.
-    n = tool_context.state.get("status_checks", 0) + 1
-    tool_context.state["status_checks"] = n
-    return {"report_id": report_id, "status": "PENDING", "progress": "generating", "checks_so_far": n}
