@@ -1,0 +1,6 @@
+google-adk[otel-gcp]==2.11.0
+google-genai>=2.31.0
+opentelemetry-exporter-otlp-proto-http>=1.38
+opentelemetry-exporter-gcp-logging>=1.11.0a0
+google-cloud-bigquery>=3.30
+anthropic[vertex]>=1.0  # only for the Claude variant (model_claude); Claude must be enabled in Model Garden

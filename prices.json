@@ -1,0 +1,27 @@
+{
+  "_what": "List prices in USD per 1M tokens, global endpoint, Standard tier, used to turn token counts into dollars per task.",
+  "_source": "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing",
+  "_as_of": "2026-10-25",
+  "_check_before_use": "Prices change. Gemini 3.8 Flash has introductory pricing through 2026-12-31 and Gemini 4 Argon has promotional pricing through 2026-11-30. Copy the current numbers from the pricing page before you trust any dollar figure. Claude prices are the Agent Platform partner-model prices (global, up to 200K input tokens; 5-minute cache writes).",
+  "gemini-3.8-flash": {
+    "input": 0.75,
+    "cached_input": 0.075,
+    "output": 3.75
+  },
+  "gemini-4-argon": {
+    "input": 2.0,
+    "cached_input": 0.1,
+    "output": 10.0
+  },
+  "gemini-3.1-flash-lite": {
+    "input": 0.25,
+    "cached_input": 0.025,
+    "output": 1.5
+  },
+  "claude-sonnet-5-5": {
+    "input": 2.0,
+    "cached_input": 0.2,
+    "cache_write": 2.5,
+    "output": 10.0
+  }
+}

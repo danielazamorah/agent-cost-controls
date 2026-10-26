@@ -1,0 +1,6 @@
+{
+ "model": "gemini-3.8-flash",
+ "semantic_layer_tokens": 8455,
+ "schema_only_tokens": 962,
+ "semantic_layer_tokens_k": 8.5
+}

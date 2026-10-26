@@ -1,0 +1,21 @@
+{
+ "displayName": "Day 28 \u00b7 Agent iteration depth (LLM calls per invocation)",
+ "documentation": {
+  "content": "An agent averaged more than 10 LLM calls per invocation over 5 minutes: likely a tool loop. Check RunConfig(max_llm_calls).",
+  "mimeType": "text/markdown"
+ },
+ "combiner": "OR",
+ "conditions": [
+  {
+   "displayName": "LLM calls in one invocation > 10 (iteration depth)",
+   "conditionPrometheusQueryLanguage": {
+    "query": "max by (\"gen_ai.agent.name\") (increase({\"__name__\"=\"gen_ai.invoke_agent.inference_calls_sum\"}[5m]) / clamp_min(increase({\"__name__\"=\"gen_ai.invoke_agent.inference_calls_count\"}[5m]), 1)) > 10",
+    "duration": "0s",
+    "evaluationInterval": "60s"
+   }
+  }
+ ],
+ "alertStrategy": {
+  "autoClose": "1800s"
+ }
+}

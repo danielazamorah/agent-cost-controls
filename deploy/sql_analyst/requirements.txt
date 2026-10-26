@@ -1,0 +1,5 @@
+google-adk[otel-gcp]==2.11.0
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-exporter-gcp-logging
+opentelemetry-exporter-gcp-trace
+opentelemetry-resourcedetector-gcp

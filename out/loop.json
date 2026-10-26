@@ -1,0 +1,30 @@
+{
+ "unbounded_safety_net_40": {
+  "answer": "",
+  "error": "LlmCallsLimitExceededError: Max number of llm calls limit of `40` exceeded",
+  "seconds": 53.5,
+  "session_id": "567f1ba9-135c-4c65-8d8f-c8a9d0b7b499",
+  "max_llm_calls": 40,
+  "llm_calls": 40,
+  "tool_calls": 40,
+  "input_tokens": 49325,
+  "cached_tokens": 0,
+  "thinking_tokens": 313,
+  "output_tokens": 920,
+  "tool_payload_chars": 3751
+ },
+ "bounded_8": {
+  "answer": "",
+  "error": "LlmCallsLimitExceededError: Max number of llm calls limit of `8` exceeded",
+  "seconds": 12.2,
+  "session_id": "ff68d742-cd5d-4caf-b81c-78f3d82b6a66",
+  "max_llm_calls": 8,
+  "llm_calls": 8,
+  "tool_calls": 8,
+  "input_tokens": 3432,
+  "cached_tokens": 0,
+  "thinking_tokens": 187,
+  "output_tokens": 184,
+  "tool_payload_chars": 744
+ }
+}

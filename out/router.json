@@ -1,0 +1,62 @@
+[
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 2.3,
+  "session_id": "4521a712-aebc-4309-9e36-3d7018980e34"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.5,
+  "session_id": "740c1fcb-5154-4748-b36a-83982807a4f8"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.9,
+  "session_id": "f5534ebf-85f9-4be9-b694-909e550037ad"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.7,
+  "session_id": "44642ba9-a3b1-4cfa-89c6-049a25fda4a7"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.8,
+  "session_id": "557b7ec5-50fa-43b7-a617-67e167114f40"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.6,
+  "session_id": "a95eb81d-552c-4f32-b295-e5c04c5f1086"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.6,
+  "session_id": "5f7e32bf-a866-417c-a7c4-27fb33b6b841"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.4,
+  "session_id": "4118d003-e970-4d3c-9a8e-0aea0c8a8678"
+ },
+ {
+  "answer": "REPORT_REQUEST",
+  "error": null,
+  "seconds": 1.6,
+  "session_id": "6c8f2e29-bfcd-47e3-865a-2dc8b173cbe1"
+ },
+ {
+  "answer": "OTHER",
+  "error": null,
+  "seconds": 1.6,
+  "session_id": "1915bd8c-8e19-4d68-ab4c-bd1b58b9ce15"
+ }
+]

@@ -1,0 +1,21 @@
+{
+ "displayName": "Day 28 \u00b7 Agent token burn rate (tokens per agent, 5 min)",
+ "documentation": {
+  "content": "An agent burned more than 20,000 tokens in 5 minutes. Open the burn-rate view and that agent's traces.",
+  "mimeType": "text/markdown"
+ },
+ "combiner": "OR",
+ "conditions": [
+  {
+   "displayName": "Tokens per agent over 5 minutes > 20k",
+   "conditionPrometheusQueryLanguage": {
+    "query": "sum by (\"gen_ai.agent.name\") (increase({\"__name__\"=\"adk.experimental.invoke_agent.total_tokens_sum\"}[5m])) > 20000",
+    "duration": "0s",
+    "evaluationInterval": "60s"
+   }
+  }
+ ],
+ "alertStrategy": {
+  "autoClose": "1800s"
+ }
+}
