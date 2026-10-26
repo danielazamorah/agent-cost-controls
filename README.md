@@ -88,10 +88,10 @@ To answer those questions accurately, the agent needs [`SEMANTIC_LAYER`](cost_la
 We test one change at a time in [`cost_lab/agents.py`](cost_lab/agents.py):
 
 1. **`baseline` (`sql_baseline`):** Prepends a dynamic per-request header (`request_id=... timestamp=...`) in front of `SEMANTIC_LAYER` inside `instruction=...`, with `thinking_level="HIGH"`. Because the first line changes on every turn, prefix caching cannot reuse the 8,500-token semantic layer (`0%` cache hit rate).
-2. **`thinking_medium` (`sql_thinking_medium`) & `thinking_low` (`sql_thinking_low`):** Lowers `ThinkingConfig(thinking_level=...)` from `"HIGH"` to `"MEDIUM"` and `"LOW"`. On this schema-guided SQL task, accuracy stays `8/8`, while thinking tokens drop from `4,536` to `1,562` and latency drops from `9.4s` to `5.6s` per question.
-3. **`static_first` (`sql_static_first`):** Moves `SEMANTIC_LAYER` into ADK's `static_instruction=` field and keeps only the dynamic per-request header in `instruction=`. With `ContextCacheConfig(min_tokens=4096, ttl_seconds=600)` enabled on `App(...)`, cache hits jump from `0%` to **`94%` of LLM calls** (`70%` of all input tokens read from cache).
-4. **`no_glossary` (`sql_no_glossary`):** The naive "cost optimization" that deletes `SEMANTIC_LAYER` to make the prompt look small and forces the agent to discover schemas via `get_schema()`. Without the metric definitions, the agent guesses column names, hits SQL errors, retries in loops (`19 -> 38` LLM calls), burns **more** total input tokens (`233,395 -> 550,885`), and collapses in quality (**`8/8 -> 2/8`**).
-5. **`best` (`sql_best`):** Combines `static_instruction=SEMANTIC_LAYER` with `thinking_level="LOW"`. Keeps **`8/8`** accuracy while cutting tokens per successful task from `30,034` to **`19,900`** (`154,599` input tokens across the 8-question session, `94%` of calls from cache).
+2. **`thinking_medium` (`sql_thinking_medium`) & `thinking_low` (`sql_thinking_low`):** Lowers `ThinkingConfig(thinking_level=...)` from `"HIGH"` to `"MEDIUM"` and `"LOW"`. On this schema-guided SQL task, accuracy stays `8/8`, while thinking tokens per task drop from `567` to `195`, total tokens per task drop from `30,034` to `20,908` (cost index `100 -> 67`), and latency drops from `9.4s` to `5.6s` per question.
+3. **`static_first` (`sql_static_first`):** Moves `SEMANTIC_LAYER` into ADK's `static_instruction=` field and keeps only the dynamic per-request header in `instruction=`. With `ContextCacheConfig(min_tokens=4096, ttl_seconds=600)` enabled on `App(...)`, cache hits jump from `0%` to **`94%` of LLM calls** (`70.2%` of input tokens read from cache, dropping the cost index from `100` to **`39`**).
+4. **`no_glossary` (`sql_no_glossary`):** The naive "cost optimization" that deletes the business glossary to make the prompt file look smaller. Because the agent still reaches **`8/8`** accuracy by running extra exploratory SQL queries and retries (`2.38 -> 4.75` LLM calls per task, `19 -> 38` calls total), a quality-only eval says nothing broke. Putting cost next to quality reveals the truth: tokens per successful task jump from `30,034` to **`72,134`** and latency triples (`9.4s -> 29.7s`), driving the cost index from `100` up to **`255`**.
+5. **`best` (`sql_best`):** Combines `static_instruction=SEMANTIC_LAYER` with `thinking_level="LOW"`. Keeps **`8/8`** accuracy while cutting tokens per successful task from `30,034` to **`19,530`** (`84.9%` of input tokens served from cache) and reducing dollars per successful task by **83%** (cost index **`100 -> 17`**).
 
 ![One line in ADK: static_instruction](docs/static_instruction_caching.jpg)
 
@@ -134,7 +134,7 @@ python run_lab.py loop
 
 In **Cloud Trace**, you can see the difference immediately:
 
-1. **Without a tight bound (`max_llm_calls=40` safety net for the demo):** the agent repeats `call_llm -> execute_tool check_report_status` 40 times in a row, re-sending the growing conversation history every time and burning **49,336 input tokens** over **53.5 seconds** for zero useful output:
+1. **Without a tight bound (`max_llm_calls=40` safety net for the demo):** the agent repeats `call_llm -> execute_tool check_report_status` 40 times in a row, re-sending the growing conversation history every time and burning **49,325 input tokens** over **53.5 seconds** for zero useful output:
 
 ![Cloud Trace waterfall of the 40-call runaway loop](docs/trace_runaway_loop.jpg)
 
@@ -142,7 +142,7 @@ In **Cloud Trace**, you can see the difference immediately:
 
 ![Cloud Trace span attributes showing per-agent token usage](docs/trace_span_tokens.jpg)
 
-3. **With `RunConfig(max_llm_calls=8)`:** the exact same agent stops cleanly at 8 calls (**4,946 input tokens**, **10.6 seconds**, **90% fewer tokens burned**):
+3. **With `RunConfig(max_llm_calls=8)`:** the exact same agent stops cleanly at 8 calls (**3,432 input tokens**, **12.2 seconds**, **93% fewer input tokens burned**):
 
 ![Cloud Trace waterfall stopped at 8 LLM calls](docs/trace_bounded_loop.jpg)
 
