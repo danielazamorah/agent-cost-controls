@@ -26,11 +26,11 @@ This repository walks through both halves of the problem:
 | [`cost_lab/agents.py`](cost_lab/agents.py) | All ADK agents used in the walkthrough: the 6 Gemini SQL analyst variants, the Gemini 4 Argon and Claude Sonnet 5.5 variants (`ClaudeWithCache`), the router agent, and the runaway `research_agent`. |
 | [`cost_lab/semantic_layer.py`](cost_lab/semantic_layer.py) | The ~8,500-token Cymbal Coffee semantic layer (table schemas, 55-term business glossary, and 20 worked SQL examples) that makes context caching and naive prompt trimming measurable. |
 | [`cost_lab/tools.py`](cost_lab/tools.py) | In-memory SQLite database for Cymbal Coffee (`run_sql`, `get_schema`) and the `check_report_status` tool that simulates a stuck upstream job (`status: "PENDING"`). |
-| [`cost_lab/eval_harness.py`](cost_lab/eval_harness.py) | Runs the 8 analyst questions in a single multi-turn session per variant, scores answers against ground-truth SQLite numbers + an LLM judge, and records `tokens_per_successful_task`. |
+| [`cost_lab/evals.py`](cost_lab/evals.py) | Runs the 8 analyst questions in a single multi-turn session per variant, scores answers against ground-truth SQLite numbers + an LLM judge, and records `tokens_per_successful_task`. |
 | [`run_lab.py`](run_lab.py) | CLI entrypoint (`summary`, `experiments`, `loop`, `burn-rate`, `all`). |
 | [`sql/burn_rate_by_agent.sql`](sql/burn_rate_by_agent.sql) | BigQuery query over the linked Cloud Trace `_AllSpans` table that ranks agents by input tokens, LLM calls per session, and cache hit rate. |
-| [`infra/token_burn_alert.json`](infra/token_burn_alert.json) | Cloud Monitoring alerting policy (PromQL over `gen_ai.client.token.usage`) that pages in minutes when any `gen_ai.agent.name` burns more than 10,000 tokens/min. |
-| [`infra/deploy_cloud_run.sh`](infra/deploy_cloud_run.sh) | Deploys [`deploy/sql_analyst`](deploy/sql_analyst) to Cloud Run with `--max-instances=3 --concurrency=8 --timeout=120s`. |
+| [`infra/token_burn_alert.json`](infra/token_burn_alert.json) | The Cloud Monitoring alerting policy shown in the episode: PromQL over ADK's `adk.experimental.invoke_agent.total_tokens` that opens an incident when any `gen_ai.agent.name` burns more than 20,000 tokens in 5 minutes. The demo agents are small; set your threshold from your own agent's normal burn. |
+| [`infra/runaway_loop_alert.json`](infra/runaway_loop_alert.json) | Bonus policy: fires when an agent averages more than 10 model calls per invocation over 5 minutes (a likely tool loop). |
 | [`COSTS.md`](COSTS.md) | Deep dive into how agents are billed on Google Cloud and recent billing features (Spend Cap budgets, AI cost anomalies, Gemini Cloud Assist root-cause analysis, and Gemini Enterprise controls). |
 | [`out/`](out/) | Pre-recorded JSON results from the real Google Cloud runs shown in the episode (`experiments_summary.json`, `loop.json`, `burn_rate.json`). |
 
@@ -170,7 +170,7 @@ python run_lab.py burn-rate
 
 ![BigQuery burn rate by agent](docs/bigquery_burn_rate.jpg)
 
-To get paged automatically within minutes instead of checking a dashboard, create the Cloud Monitoring PromQL alert policy in [`infra/token_burn_alert.json`](infra/token_burn_alert.json), which sums `gen_ai.client.token.usage` (or `adk.experimental.invoke_agent.total_tokens`) grouped by `gen_ai.agent.name`:
+To get paged automatically within minutes instead of checking a dashboard, create the Cloud Monitoring PromQL alert policy in [`infra/token_burn_alert.json`](infra/token_burn_alert.json), which sums ADK's `adk.experimental.invoke_agent.total_tokens` per `gen_ai.agent.name` over 5 minutes and opens an incident above 20,000 tokens (ADK exports this metric when Cloud metrics are on and `ADK_EXPERIMENTAL_TELEMETRY=true`):
 
 ```bash
 gcloud alpha monitoring policies create --policy-from-file=infra/token_burn_alert.json
@@ -205,11 +205,12 @@ Even if someone deploys an agent that forgets `RunConfig(max_llm_calls=...)`, in
 
 ![Caps that hold even when the code does not](docs/caps_around_the_agent.jpg)
 
-1. **Cloud Run instance, concurrency, and timeout bounds ([`infra/deploy_cloud_run.sh`](infra/deploy_cloud_run.sh)):**
-   Deploy the SQL analyst agent service with hard Cloud Run bounds so traffic spikes cannot scale past `3 instances x 8 concurrent requests = 24 requests in flight`, and any hung request is cut off at `120 seconds`:
+1. **Cloud Run instance, concurrency, and timeout bounds:**
+   Put hard Cloud Run bounds on the deployed SQL analyst service so traffic spikes cannot scale past `3 instances x 8 concurrent requests = 24 requests in flight`, and any hung request is cut off at `120 seconds`:
 
    ```bash
-   PROJECT_ID="$GOOGLE_CLOUD_PROJECT" REGION="us-central1" bash infra/deploy_cloud_run.sh
+   gcloud run services update day28-sql-analyst --region us-central1 \
+     --max-instances 3 --concurrency 8 --timeout 120
    ```
 
    ![Deployed Cloud Run service showing max 3 instances, concurrency 8, and 120s timeout](docs/cloud_run_caps.jpg)
