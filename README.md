@@ -8,7 +8,7 @@ This repository walks through both halves of the problem:
 
 1. **Part 1: The Developer View (Cost Next to Quality)**
    - **1.1 Price the task, not the token:** capture input tokens, cached tokens, thinking tokens, output tokens, LLM calls, and latency on every turn.
-   - **1.2 Put cost next to quality:** run one controlled change at a time (`thinking_level`, `static_instruction` context caching, prompt trimming, and model choice across Gemini and Claude on Vertex AI) next to an LLM judge so you optimize **cost per successful task**.
+   - **1.2 Put cost next to quality:** run one controlled change at a time (`thinking_level`, `static_instruction` context caching, prompt trimming, and model choice across Gemini and Claude on Agent Platform) next to an LLM judge so you optimize **cost per successful task**.
    - **1.3 Bound the loop in code:** cap runaway tool-polling loops inside the agent with `RunConfig(max_llm_calls=8)` (ADK's default is `500`).
 2. **Part 2: The Organization View (Alarms, Attribution, and Hard Caps)**
    - **2.1 Alarm in minutes:** query per-agent token burn rate in BigQuery (`sql/burn_rate_by_agent.sql`) and fire a real-time Cloud Monitoring PromQL alert (`infra/token_burn_alert.json`) when any agent crosses your token velocity threshold.
@@ -111,7 +111,7 @@ python run_lab.py experiments baseline thinking_medium thinking_low static_first
 
 ##### Comparing models (`model_argon`, `model_claude`, `claude_static_first`)
 
-You can also run the exact same 8-question benchmark across **Gemini 3.8 Flash**, **Gemini 4 Argon**, and **Anthropic Claude Sonnet 5.5 on Vertex AI** via ADK's `Claude(model="claude-sonnet-5-5")` (including comparing `model_claude` with a dynamic prefix at the top against `claude_static_first` with the static semantic layer first):
+You can also run the exact same 8-question benchmark across **Gemini 3.8 Flash**, **Gemini 4 Argon**, and **Anthropic Claude Sonnet 5.5 on Agent Platform** via ADK's `Claude(model="claude-sonnet-5-5")` (including comparing `model_claude` with a dynamic prefix at the top against `claude_static_first` with the static semantic layer first):
 
 ```bash
 export VERTEX_CLAUDE_LOCATION="us-east5"
@@ -166,7 +166,7 @@ When an entire engineering org is deploying agents, you need controls that work 
 
 #### Step 2.1: Find your hungriest agent in BigQuery and alert in minutes
 
-Once Cloud Trace is linked to BigQuery (`agent_spans._AllSpans`), every agent run across your project lands in a single queryable table, including partner models like Claude on Vertex AI.
+Once Cloud Trace is linked to BigQuery (`agent_spans._AllSpans`), every agent run across your project lands in a single queryable table, including partner models like Claude on Agent Platform.
 
 Run the burn-rate query from the CLI (or paste [`sql/burn_rate_by_agent.sql`](sql/burn_rate_by_agent.sql) into BigQuery Studio):
 
