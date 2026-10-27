@@ -13,7 +13,7 @@ This repository walks through both halves of the problem:
 2. **Part 2: The Organization View (Alarms, Attribution, and Hard Caps)**
    - **2.1 Alarm in minutes:** query per-agent token burn rate in BigQuery (`sql/burn_rate_by_agent.sql`) and fire a real-time Cloud Monitoring PromQL alert (`infra/token_burn_alert.json`) when any agent crosses your token velocity threshold.
    - **2.2 Attribute the dollars:** attach custom billing labels (`labels={"agent": "...", "app": "..."}`) to `GenerateContentConfig` so Cloud Billing exports and budgets break out spend by agent.
-   - **2.3 Cap the spend around the agent:** enforce infrastructure bounds on Cloud Run (`--max-instances=3 --concurrency=8 --timeout=120s`), per-caller token quotas at the gateway, and project-level Spend Cap budgets in Cloud Billing.
+   - **2.3 Cap the spend around the agent:** enforce infrastructure bounds on Cloud Run (`--max-instances=3 --concurrency=8 --timeout=120s`) and project-level Spend Cap budgets in Cloud Billing.
 
 ![How an agent is billed on Google Cloud](docs/how_agents_are_billed.jpg)
 
@@ -23,13 +23,16 @@ This repository walks through both halves of the problem:
 
 | File | Purpose |
 | :--- | :--- |
-| [`cost_lab/agents.py`](cost_lab/agents.py) | All ADK agents used in the walkthrough: the 6 Gemini SQL analyst variants, the Gemini 4 Argon and Claude Sonnet 5.5 variants (`ClaudeWithCache`), the router agent, and the runaway `research_agent`. |
+| [`snippets/cost_controls.py`](snippets/cost_controls.py) | Day 28 in one file: all five cost controls on one ADK agent (metering callback, `static_instruction` context caching, billing `labels`, `thinking_level`, and `RunConfig(max_llm_calls=8)`). |
+| [`cost_lab/agents.py`](cost_lab/agents.py) | All ADK agents used in the walkthrough: the 6 Gemini SQL analyst variants, the Gemini 4 Argon and Claude Sonnet 5.5 variants (`Claude(model="claude-sonnet-5-5")`), the router agent, and the runaway `research_agent`. |
+| [`cost_lab/meter.py`](cost_lab/meter.py) | `TaskMeter` (`after_model_callback` + `after_tool_callback`) and [`cost_lab/prices.json`](cost_lab/prices.json) task pricing (`usd_per_success`). |
 | [`cost_lab/semantic_layer.py`](cost_lab/semantic_layer.py) | The ~8,500-token Cymbal Coffee semantic layer (table schemas, 55-term business glossary, and 20 worked SQL examples) that makes context caching and naive prompt trimming measurable. |
-| [`cost_lab/tools.py`](cost_lab/tools.py) | In-memory SQLite database for Cymbal Coffee (`run_sql`, `get_schema`) and the `check_report_status` tool that simulates a stuck upstream job (`status: "PENDING"`). |
-| [`cost_lab/evals.py`](cost_lab/evals.py) | Runs the 8 analyst questions in a single multi-turn session per variant, scores answers against ground-truth SQLite numbers + an LLM judge, and records `tokens_per_successful_task`. |
-| [`run_lab.py`](run_lab.py) | CLI entrypoint (`summary`, `experiments`, `loop`, `burn-rate`, `all`). |
-| [`sql/burn_rate_by_agent.sql`](sql/burn_rate_by_agent.sql) | BigQuery query over the linked Cloud Trace `_AllSpans` table that ranks agents by input tokens, LLM calls per session, and cache hit rate. |
-| [`infra/token_burn_alert.json`](infra/token_burn_alert.json) | The Cloud Monitoring alerting policy shown in the episode: PromQL over ADK's `adk.experimental.invoke_agent.total_tokens` that opens an incident when any `gen_ai.agent.name` burns more than 20,000 tokens in 5 minutes. The demo agents are small; set your threshold from your own agent's normal burn. |
+| [`cost_lab/db.py`](cost_lab/db.py) | Deterministic in-memory SQLite database for Cymbal Coffee (`run_sql`, `get_schema`) and ground-truth task verifiers. |
+| [`cost_lab/tools.py`](cost_lab/tools.py) | The `check_report_status` tool that simulates a stuck upstream job (`status: "PENDING"`). |
+| [`cost_lab/evals.py`](cost_lab/evals.py) | Runs the 8 analyst questions in a single multi-turn session per variant, scores answers against ground-truth SQLite numbers + an LLM judge, and records `tokens_per_successful_task` and `usd_per_success`. |
+| [`run_lab.py`](run_lab.py) | CLI entrypoint (`summary`, `experiments`, `loop`, `router`, `all`). |
+| [`burn_rate.py`](burn_rate.py) & [`sql/burn_rate_by_agent.sql`](sql/burn_rate_by_agent.sql) | BigQuery runner and SQL query over the linked Cloud Trace `_AllSpans` table that ranks agents by input tokens, LLM calls per session, and cache hit rate. |
+| [`infra/token_burn_alert.json`](infra/token_burn_alert.json) | The Cloud Monitoring alerting policy shown in the episode: PromQL over ADK's `adk.experimental.invoke_agent.total_tokens_sum` that opens an incident when any `gen_ai.agent.name` burns more than 20,000 tokens in 5 minutes. The demo agents are small; set your threshold from your own agent's normal burn. |
 | [`infra/runaway_loop_alert.json`](infra/runaway_loop_alert.json) | Bonus policy: fires when an agent averages more than 10 model calls per invocation over 5 minutes (a likely tool loop). |
 | [`COSTS.md`](COSTS.md) | Deep dive into how agents are billed on Google Cloud and recent billing features (Spend Cap budgets, AI cost anomalies, Gemini Cloud Assist root-cause analysis, and Gemini Enterprise controls). |
 | [`out/`](out/) | Pre-recorded JSON results from the real Google Cloud runs shown in the episode (`experiments_summary.json`, `loop.json`, `burn_rate.json`). |
@@ -48,7 +51,7 @@ cd agent-cost-controls
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -r requirements.txt pytest
 
 # Verify the semantic layer, ground-truth SQL answers, agent configs, and pre-recorded results:
 pytest -q
@@ -68,10 +71,13 @@ export GOOGLE_CLOUD_PROJECT="your-gcp-project-id"
 export GOOGLE_CLOUD_LOCATION="global"
 export GOOGLE_GENAI_USE_VERTEXAI=TRUE
 export BQ_TRACE_DATASET="agent_spans"
+
+# Run the single-file 5-control walkthrough:
+python snippets/cost_controls.py
 ```
 
 > **Link Cloud Trace to BigQuery (one-time setup per project):**
-> In the Google Cloud Console, open **Trace -> Settings -> Link to BigQuery** and link your trace data to a BigQuery dataset named `agent_spans`. Cloud Trace will populate the `agent_spans._AllSpans` table used by `sql/burn_rate_by_agent.sql` and `python run_lab.py burn-rate`.
+> In the Google Cloud Console, open **Trace -> Settings -> Link to BigQuery** and link your trace data to a BigQuery dataset named `agent_spans`. Cloud Trace will populate the `agent_spans._AllSpans` table used by `sql/burn_rate_by_agent.sql` and `python burn_rate.py`.
 
 ---
 
@@ -95,21 +101,21 @@ We test one change at a time in [`cost_lab/agents.py`](cost_lab/agents.py):
 
 ![One line in ADK: static_instruction](docs/static_instruction_caching.jpg)
 
-Run the 6 Gemini variants and the evaluation harness:
+Run the 6 Gemini variants (or omit the variant names to run all 9 variants) and the evaluation harness:
 
 ```bash
-python run_lab.py experiments
+python run_lab.py experiments baseline thinking_medium thinking_low static_first no_glossary best
 ```
 
 ![Put cost next to quality](docs/cost_next_to_quality.jpg)
 
-##### Comparing models (`RUN_ALL_MODELS=1`)
+##### Comparing models (`model_argon`, `model_claude`, `claude_static_first`)
 
-You can also run the exact same 8-question benchmark across **Gemini 3.8 Flash**, **Gemini 4 Argon**, and **Anthropic Claude Sonnet 5.5 on Vertex AI** (including Anthropic's explicit prompt caching via `cache_control={"type": "ephemeral"}` in `ClaudeWithCache`):
+You can also run the exact same 8-question benchmark across **Gemini 3.8 Flash**, **Gemini 4 Argon**, and **Anthropic Claude Sonnet 5.5 on Vertex AI** via ADK's `Claude(model="claude-sonnet-5-5")` (including comparing `model_claude` with a dynamic prefix at the top against `claude_static_first` with the static semantic layer first):
 
 ```bash
 export VERTEX_CLAUDE_LOCATION="us-east5"
-RUN_ALL_MODELS=1 python run_lab.py experiments
+python run_lab.py experiments model_argon model_claude claude_static_first
 ```
 
 ![Same agent, three models](docs/three_models.jpg)
@@ -165,12 +171,12 @@ Once Cloud Trace is linked to BigQuery (`agent_spans._AllSpans`), every agent ru
 Run the burn-rate query from the CLI (or paste [`sql/burn_rate_by_agent.sql`](sql/burn_rate_by_agent.sql) into BigQuery Studio):
 
 ```bash
-python run_lab.py burn-rate
+python burn_rate.py
 ```
 
 ![BigQuery burn rate by agent](docs/bigquery_burn_rate.jpg)
 
-To get paged automatically within minutes instead of checking a dashboard, create the Cloud Monitoring PromQL alert policy in [`infra/token_burn_alert.json`](infra/token_burn_alert.json), which sums ADK's `adk.experimental.invoke_agent.total_tokens` per `gen_ai.agent.name` over 5 minutes and opens an incident above 20,000 tokens (ADK exports this metric when Cloud metrics are on and `ADK_EXPERIMENTAL_TELEMETRY=true`):
+To get paged automatically within minutes instead of checking a dashboard, create the Cloud Monitoring PromQL alert policy in [`infra/token_burn_alert.json`](infra/token_burn_alert.json), which sums ADK's `adk.experimental.invoke_agent.total_tokens_sum` per `gen_ai.agent.name` over 5 minutes and opens an incident above 20,000 tokens (ADK exports this metric when Cloud metrics are on and `ADK_EXPERIMENTAL_TELEMETRY=true`):
 
 ```bash
 gcloud alpha monitoring policies create --policy-from-file=infra/token_burn_alert.json
